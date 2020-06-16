@@ -31,31 +31,47 @@ import org.apache.spark.util.Utils
 
 /**
  * Configuration for a Spark application. Used to set various Spark parameters as key-value pairs.
+ * Spark 应用的配置类。用来将所有的配置参数存储为键值对。
  *
  * Most of the time, you would create a SparkConf object with `new SparkConf()`, which will load
  * values from any `spark.*` Java system properties set in your application as well. In this case,
  * parameters you set directly on the `SparkConf` object take priority over system properties.
+ * 通常情况下，可以通过 `new SparkConf()` 来获得 SparkConf 对象，同时此方法会加载系统属性中 `spark.*` 的属性参数。
+ * 用户直接配置在 SparkConf 对象上的的参数比系统属性有更高的优先级。
  *
  * For unit tests, you can also call `new SparkConf(false)` to skip loading external settings and
  * get the same configuration no matter what the system properties are.
+ * 在测试用例中，可以通过 `new SparkConf(false)` 的方式跳过加载系统属性，以获取相同的配置信息。
  *
  * All setter methods in this class support chaining. For example, you can write
  * `new SparkConf().setMaster("local").setAppName("My app")`.
+ * 配置类中所有的 setter 方法都是支持链式调用的。
  *
- * @param loadDefaults whether to also load values from Java system properties
+ * 配置 spark 的 3 种方式：
+ * - 从系统属性加载
+ * - 使用 API 设置
+ * - 从其他 SparkConf 对象 clone，主要用于各个组件间传递
+ *
+ * @param loadDefaults whether to also load values from Java system properties 是否加载系统属性参数
  *
  * @note Once a SparkConf object is passed to Spark, it is cloned and can no longer be modified
  * by the user. Spark does not support modifying the configuration at runtime.
+ * SparkConf 对象一旦被传递给 Spark，它就会被克隆，且无法被用户修改。Spark 不支持在运行时修改配置信息。
  */
 class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Serializable {
 
   import SparkConf._
 
-  /** Create a SparkConf that loads defaults from system properties and the classpath */
+  /**
+   * Create a SparkConf that loads defaults from system properties and the classpath
+   * 空构造函数，默认加载系统属性
+   */
   def this() = this(true)
 
+  // 存储配置的 Map
   private val settings = new ConcurrentHashMap[String, String]()
 
+  // 配置阅读器，通过懒加载的方式创建
   @transient private lazy val reader: ConfigReader = {
     val _reader = new ConfigReader(new SparkConfigProvider(settings))
     _reader.bindEnv(new ConfigProvider {
@@ -68,6 +84,7 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
     loadFromSystemProperties(false)
   }
 
+  /** 加载所有 spark. 开头的系统属性 */
   private[spark] def loadFromSystemProperties(silent: Boolean): SparkConf = {
     // Load any spark.* system properties
     for ((key, value) <- Utils.getSystemProperties if key.startsWith("spark.")) {
@@ -76,12 +93,16 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
     this
   }
 
-  /** Set a configuration variable. */
+  /**
+   * Set a configuration variable.
+   * set 的重载，其他 setter 都是调用的此方法
+   */
   def set(key: String, value: String): SparkConf = {
     set(key, value, false)
   }
 
   private[spark] def set(key: String, value: String, silent: Boolean): SparkConf = {
+    // key-value 不允许为 null
     if (key == null) {
       throw new NullPointerException("null key")
     }
@@ -89,6 +110,7 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
       throw new NullPointerException("null value for " + key)
     }
     if (!silent) {
+      // 打印废弃信息日志
       logDeprecationWarning(key)
     }
     settings.put(key, value)
@@ -196,6 +218,8 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
   /**
    * Use Kryo serialization and register the given set of classes with Kryo.
    * If called multiple times, this will append the classes from all calls together.
+   * 使用 Kryo 序列化并注册需要使用 Kryo 序列化的类。
+   * 当多次调用此方法时，以追加的方式补充需要注册的类。
    */
   def registerKryoClasses(classes: Array[Class[_]]): SparkConf = {
     val allClassNames = new LinkedHashSet[String]()
@@ -428,6 +452,7 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
 
   /** Copy this object */
   override def clone: SparkConf = {
+    // 克隆一个新的 SparkConf 对象，注意不加载系统属性了
     val cloned = new SparkConf(false)
     settings.entrySet().asScala.foreach { e =>
       cloned.set(e.getKey(), e.getValue(), true)
@@ -444,6 +469,8 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
   /**
    * Checks for illegal or deprecated config settings. Throws an exception for the former. Not
    * idempotent - may mutate this conf object to convert deprecated settings to supported ones.
+   * 校验非法或废弃的配置。非法的配置会抛出异常。
+   * 不是幂等的 - 校验的途中可能会更改对象，将废弃的配置转变为受支持的配置。
    */
   private[spark] def validateSettings() {
     if (contains("spark.local.dir")) {
@@ -583,6 +610,8 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
       }
     }
 
+    // 从 spark 2.0+ 开始，取消 spark.master 的 yarn-cluster/yarn-client
+    // 使用 spark.master=yarn, spark.submit.deployMode=cluster/client 代替
     if (contains("spark.master") && get("spark.master").startsWith("yarn-")) {
       val warning = s"spark.master ${get("spark.master")} is deprecated in Spark 2.0+, please " +
         "instead use \"yarn\" with specified deploy mode."
@@ -600,6 +629,7 @@ class SparkConf(loadDefaults: Boolean) extends Cloneable with Logging with Seria
       }
     }
 
+    // spark.submit.deployMode 仅仅支持 cluster 和 client
     if (contains("spark.submit.deployMode")) {
       get("spark.submit.deployMode") match {
         case "cluster" | "client" =>
@@ -626,6 +656,8 @@ private[spark] object SparkConf extends Logging {
    *
    * The extra information is logged as a warning when the config is present in the user's
    * configuration.
+   *
+   * 废弃的配置信息.
    */
   private val deprecatedConfigs: Map[String, DeprecatedConfig] = {
     val configs = Seq(
@@ -651,6 +683,8 @@ private[spark] object SparkConf extends Logging {
    *
    * The alternates are used in the order defined in this map. If deprecated configs are
    * present in the user's configuration, a warning is logged.
+   *
+   * 新旧版本配置项的映射关系.
    */
   private val configsWithAlternatives = Map[String, Seq[AlternateConfig]](
     "spark.executor.userClassPathFirst" -> Seq(
@@ -707,6 +741,9 @@ private[spark] object SparkConf extends Logging {
    * config keys.
    *
    * Maps the deprecated config name to a 2-tuple (new config name, alternate config info).
+   *
+   * 返回所有新旧配置的对应关系（视图/map）
+   * Map(oldKey -> (newKey, AlternateConfig))
    */
   private val allAlternatives: Map[String, (String, AlternateConfig)] = {
     configsWithAlternatives.keys.flatMap { key =>
@@ -719,6 +756,9 @@ private[spark] object SparkConf extends Logging {
    *
    * Certain authentication configs are required from the executor when it connects to
    * the scheduler, while the rest of the spark configs can be inherited from the driver later.
+   *
+   * 当 executor 连接到 scheduler 时需要一些配置信息来做认证，这些配置信息应该在 executor 启动时被传递，
+   * 其他配置信息可以在稍微从 driver 继承.
    */
   def isExecutorStartupConf(name: String): Boolean = {
     (name.startsWith("spark.auth") && name != SecurityManager.SPARK_AUTH_SECRET_CONF) ||
@@ -765,6 +805,7 @@ private[spark] object SparkConf extends Logging {
       return
     }
     if (key.startsWith("spark.akka") || key.startsWith("spark.ssl.akka")) {
+      // 从 spark 2.0 开始不再使用 Akka
       logWarning(
         s"The configuration key $key is not supported any more " +
           s"because Spark doesn't use Akka since 2.0")
