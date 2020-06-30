@@ -21,6 +21,7 @@ import com.google.common.primitives.Ints;
 
 /**
  * A central location that tracks all the settings we expose to users.
+ * 传输上下文的配置信息。
  */
 public class TransportConf {
 
@@ -43,8 +44,10 @@ public class TransportConf {
   private final String SPARK_NETWORK_IO_RETRYWAIT_KEY;
   private final String SPARK_NETWORK_IO_LAZYFD_KEY;
 
+  /** 配置提供者 */
   private final ConfigProvider conf;
 
+  /** 配置的模块名称，将传输层的配置细化到模块级别 */
   private final String module;
 
   public TransportConf(String module, ConfigProvider conf) {
@@ -69,6 +72,12 @@ public class TransportConf {
     return conf.getInt(name, defaultValue);
   }
 
+  /**
+   * 键名最终的格式将会是: spark.模块名.具体键名，而模块名则由 TransportConf 构造方法的 module 参数提供。
+   * 这种设计是考虑到，Spark 中大量的模块都可能会使用通信架构的传输层来实现模块内的组件通信，但是不同模块对于数据传输的需求是不一样的，
+   * 例如，消息通信会要求低延时，保证可到达，对于吞吐量没有特别的要求，但是对于文件传输操作则要求较高的吞吐量，需要更大的读写缓冲区。
+   * Spark 将传输层的配置细化到模块级别，更容易让配置之间相互隔离。
+   */
   private String getConfKey(String suffix) {
     return "spark." + module + "." + suffix;
   }

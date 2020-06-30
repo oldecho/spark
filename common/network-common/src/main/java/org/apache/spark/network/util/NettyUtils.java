@@ -101,6 +101,9 @@ public class NettyUtils {
    * are disabled for TransportClients because the ByteBufs are allocated by the event loop thread,
    * but released by the executor thread rather than the event loop thread. Those thread-local
    * caches actually delay the recycling of buffers, leading to larger memory usage.
+   * 创建一个池化的 ByteBuf 分配器，但禁用线程本地缓存。
+   * 对于传输客户端禁用线程本地缓存，因为 ByteBuf 是由事件循环线程分配的，但是由执行者线程而不是事件循环线程释放的。
+   * 这些线程本地缓存实际上延迟了缓冲区的回收，从而导致更大的内存使用量。
    */
   public static PooledByteBufAllocator createPooledByteBufAllocator(
       boolean allowDirectBufs,

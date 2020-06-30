@@ -60,25 +60,47 @@ class StreamInterceptor implements TransportFrameDecoder.Interceptor {
     callback.onFailure(streamId, new ClosedChannelException());
   }
 
+  /**
+   * 对于 StreamResponse 之后的流数据，都会交给该方法处理，它会读取本次传输的数据，传递给 callback 的 onData() 方法处理，
+   * 这里的 callback 即是在 TransportClient 发送 StreamRequest 时
+   * 存放在 TransportResponseHandler 的 streamCallbacks 队列里的 StreamCallback 回调。
+   *
+   * handle() 方法后面的代码会判断流数据的读取情况，
+   * 在读取过多、读取完成的情况下都会将 TransportResponseHandler 中用于记录流的状态字段 streamActive 置为 false，清除流的激活状态，
+   * 然后使用 StreamCallback 回调对象的相应方法进行处理。
+   */
   @Override
   public boolean handle(ByteBuf buf) throws Exception {
+    // 本次要读取的数据字节数
     int toRead = (int) Math.min(buf.readableBytes(), byteCount - bytesRead);
+    // 构造 buf 的分片并转换为 NIO 的 ByteBuffer，该操作会从 readerIndex 开始，创建长度为 toRead 的分片
     ByteBuffer nioBuffer = buf.readSlice(toRead).nioBuffer();
 
+    // 获取可读字节数
     int available = nioBuffer.remaining();
+    // 将数据传给 StreamCallback 回调对象
     callback.onData(streamId, nioBuffer);
+    // 累计已读字节数
     bytesRead += available;
-    if (bytesRead > byteCount) {
+
+    // 判断读了多少
+    if (bytesRead > byteCount) {  // 已读字节大于响应消息指定的总字节数
+      // 构造异常
       RuntimeException re = new IllegalStateException(String.format(
         "Read too many bytes? Expected %d, but read %d.", byteCount, bytesRead));
+      // 将异常交给 StreamCallback 回调对象
       callback.onFailure(streamId, re);
+      // 关闭流
       handler.deactivateStream();
       throw re;
-    } else if (bytesRead == byteCount) {
+    } else if (bytesRead == byteCount) {  // 已读字节等于响应消息指定的总字节数
+      // 即已经读完了，关闭流
       handler.deactivateStream();
+      // 调用 StreamCallback 回调对象的方法告知读完了
       callback.onComplete(streamId);
     }
 
+    // 返回值表示是否读完
     return bytesRead != byteCount;
   }
 

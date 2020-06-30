@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 /**
+ * 该接口以字节形式提供了一个不可变的数据视图。
  * This interface provides an immutable view for data in the form of bytes. The implementation
  * should specify how the data is provided:
  *
@@ -33,6 +34,9 @@ import java.nio.ByteBuffer;
  * For example, in the case of {@link NettyManagedBuffer}, the buffers are reference counted.
  * In that case, if the buffer is going to be passed around to a different thread, retain/release
  * should be called.
+ * 可以在JVM垃圾收集器之外管理具体的缓冲区实现。
+ * 例如，在{@link NettyManagedBuffer}的情况下，对缓冲区进行引用计数。
+ * 在这种情况下，如果要将缓冲区传递给另一个线程，则应调用 retain/release
  */
 public abstract class ManagedBuffer {
 
@@ -55,12 +59,15 @@ public abstract class ManagedBuffer {
 
   /**
    * Increment the reference count by one if applicable.
+   * 当有新的使用者使用此视图，增加引用数
    */
   public abstract ManagedBuffer retain();
 
   /**
    * If applicable, decrement the reference count by one and deallocates the buffer if the
    * reference count reaches zero.
+   * 当有使用者不再使用此视图，减少引用此视图的引用书
+   * 当引用数为0，释放缓冲区
    */
   public abstract ManagedBuffer release();
 

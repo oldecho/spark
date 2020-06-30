@@ -23,17 +23,31 @@ import org.apache.spark.network.protocol.Message;
  * Handles either request or response messages coming off of Netty. A MessageHandler instance
  * is associated with a single Netty Channel (though it may have multiple clients on the same
  * Channel.)
+ * 处理来自 Netty 的请求或响应消息。MessageHandler 实例与单个 Netty 通道关联（尽管它可能在同一通道上具有多个客户端。）
+ * TransportRequestHandler & TransportResponseHandler 都是继承自 MessageHandler
  */
 public abstract class MessageHandler<T extends Message> {
-  /** Handles the receipt of a single message. */
+  /**
+   * Handles the receipt of a single message.
+   * 处理单个消息的接收。
+   */
   public abstract void handle(T message) throws Exception;
 
-  /** Invoked when the channel this MessageHandler is on is active. */
+  /**
+   * Invoked when the channel this MessageHandler is on is active.
+   * 当此 MessageHandler 所在的通道处于活动状态时调用。
+   */
   public abstract void channelActive();
 
-  /** Invoked when an exception was caught on the Channel. */
+  /**
+   * Invoked when an exception was caught on the Channel.
+   * 当 Channel 捕获到异常时调用
+   */
   public abstract void exceptionCaught(Throwable cause);
 
-  /** Invoked when the channel this MessageHandler is on is inactive. */
+  /**
+   * Invoked when the channel this MessageHandler is on is inactive.
+   * 当此 MessageHandler 所在的通道处于非活动状态时调用。
+   */
   public abstract void channelInactive();
 }

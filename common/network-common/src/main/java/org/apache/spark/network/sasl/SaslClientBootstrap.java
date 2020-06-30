@@ -36,6 +36,8 @@ import org.apache.spark.network.util.TransportConf;
 /**
  * Bootstraps a {@link TransportClient} by performing SASL authentication on the connection. The
  * server should be setup with a {@link SaslRpcHandler} with matching keys for the given appId.
+ * 通过对连接执行SASL身份验证来引导{@link TransportClient}。
+ * 服务器应使用{@link SaslRpcHandler}进行设置，并带有给定 appId 的匹配密钥。
  */
 public class SaslClientBootstrap implements TransportClientBootstrap {
   private static final Logger logger = LoggerFactory.getLogger(SaslClientBootstrap.class);
@@ -69,26 +71,34 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
   public void doBootstrap(TransportClient client, Channel channel) {
     SparkSaslClient saslClient = new SparkSaslClient(appId, secretKeyHolder, encrypt);
     try {
+      // 构造装载 Token 的载荷
       byte[] payload = saslClient.firstToken();
 
       while (!saslClient.isComplete()) {
+        // 构造 SaslMessage 消息
         SaslMessage msg = new SaslMessage(appId, payload);
+        // 将 SaslMessage 写入到 ByteBuf
         ByteBuf buf = Unpooled.buffer(msg.encodedLength() + (int) msg.body().size());
         msg.encode(buf);
         buf.writeBytes(msg.body().nioByteBuffer());
 
+        // 使用 TransportClient 以同步方式发送 RpcRequest
         ByteBuffer response = client.sendRpcSync(buf.nioBuffer(), conf.saslRTTimeoutMs());
+        // 解析响应数据
         payload = saslClient.response(JavaUtils.bufferToArray(response));
       }
 
+      // 走到这里，说明 SASL 认证完成了，将 appId 设置到 TransportClient 中
       client.setClientId(appId);
 
-      if (encrypt) {
+      if (encrypt) {  // 如果开启了传输加密
         if (!SparkSaslServer.QOP_AUTH_CONF.equals(saslClient.getNegotiatedProperty(Sasl.QOP))) {
           throw new RuntimeException(
             new SaslException("Encryption requests by negotiated non-encrypted connection."));
         }
+        // 为 Channel 的处理器链头部添加 EncryptionHandler 加密处理器、DecryptionHandler 解密处理器和 TransportFrameDecoder 帧解码器
         SaslEncryption.addToChannel(channel, saslClient, conf.maxSaslEncryptedBlockSize());
+        // 将 SaslClient 置空
         saslClient = null;
         logger.debug("Channel {} configured for SASL encryption.", client);
       }
@@ -98,6 +108,7 @@ public class SaslClientBootstrap implements TransportClientBootstrap {
       if (saslClient != null) {
         try {
           // Once authentication is complete, the server will trust all remaining communication.
+          // 认证完成后，服务端会对剩余所有的请求授信
           saslClient.dispose();
         } catch (RuntimeException e) {
           logger.error("Error while disposing SASL client", e);

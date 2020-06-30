@@ -34,6 +34,7 @@ import static org.apache.spark.network.util.NettyUtils.getRemoteAddress;
 /**
  * The single Transport-level Channel handler which is used for delegating requests to the
  * {@link TransportRequestHandler} and responses to the {@link TransportResponseHandler}.
+ * 单个传输级通道处理程序，用于将请求委派给 TransportRequestHandler 和对 TransportResponseHandler 的响应。
  *
  * All channels created in the transport layer are bidirectional. When the Client initiates a Netty
  * Channel with a RequestMessage (which gets handled by the Server's RequestHandler), the Server
@@ -42,19 +43,32 @@ import static org.apache.spark.network.util.NettyUtils.getRemoteAddress;
  * Client.
  * This means that the Client also needs a RequestHandler and the Server needs a ResponseHandler,
  * for the Client's responses to the Server's requests.
+ * 在传输层中创建的所有通道都是双向的。
+ * 当客户端使用 RequestMessage（由服务器的 RequestHandler 处理）启动 Netty 通道时，服务器将生成 ResponseMessage（由客户端的 ResponseHandler 处理）。
+ * 但是，服务器也在同一 Channel 上获得了一个句柄，因此它可能随后开始向 Client 发送 RequestMessages。
+ * 这意味着客户端还需要一个 RequestHandler，服务器也需要一个 ResponseHandler，以便客户端对服务器请求的响应。
  *
  * This class also handles timeouts from a {@link io.netty.handler.timeout.IdleStateHandler}.
  * We consider a connection timed out if there are outstanding fetch or RPC requests but no traffic
  * on the channel for at least `requestTimeoutMs`. Note that this is duplex traffic; we will not
  * timeout if the client is continuously sending but getting no responses, for simplicity.
+ * 此类还处理来自 io.netty.handler.timeout.IdleStateHandler 的超时。
+ * 如果至少有 `requestTimeoutMs`，则在通道上有未完成的提取或 RPC 请求但没有流量时，我们认为连接超时。
+ * 请注意，这是双工流量。为简单起见，如果客户端持续发送但没有响应，我们不会超时。
+ *
+ * 代理由 TransportRequestHandler 处理的请求和由 TransportResponseHandler 处理的响应，并加入传输层的处理。
  */
 public class TransportChannelHandler extends SimpleChannelInboundHandler<Message> {
   private static final Logger logger = LoggerFactory.getLogger(TransportChannelHandler.class);
 
   private final TransportClient client;
+
+  /** 代理的响应处理器和请求处理器. */
   private final TransportResponseHandler responseHandler;
   private final TransportRequestHandler requestHandler;
+  /** 超时时间（纳秒）. */
   private final long requestTimeoutNs;
+  /** 是否关闭空闲连接. */
   private final boolean closeIdleConnections;
 
   public TransportChannelHandler(
@@ -113,6 +127,10 @@ public class TransportChannelHandler extends SimpleChannelInboundHandler<Message
     super.channelUnregistered(ctx);
   }
 
+  /**
+   * 当 TransportChannelHandler 读取的 request 是 RequestMessage 时，则将此消息的处理进一步处理交给 TransportRequestHandler，
+   * 当读取的 request 是 ResponseMessage 时，则将此消息的处理进一步交给 TransportResponseHandler
+   */
   @Override
   public void channelRead0(ChannelHandlerContext ctx, Message request) throws Exception {
     if (request instanceof RequestMessage) {

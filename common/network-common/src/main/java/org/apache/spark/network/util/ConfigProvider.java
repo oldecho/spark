@@ -21,9 +21,18 @@ import java.util.NoSuchElementException;
 
 /**
  * Provides a mechanism for constructing a {@link TransportConf} using some sort of configuration.
+ * 提供一种使用某种配置来构造{@link TransportConf}的机制。
+ * ConfigProvider 是一个抽象类，使用了模板方法设计模式，提供了一个抽象的 get(String name) 方法让子类实现，
+ * 其它的方法都是使用该方法进行获取，然后转换为特定类型的值。
+ *
+ * 通常使用 spark-core 模块下 org.apache.spark.network.netty.SparkTransportConf object 下的 fromSparkConf 方法
+ * 通过实现此类，用 get 方法代理 SparkConf 的 get 方法
  */
 public abstract class ConfigProvider {
-  /** Obtains the value of the given config, throws NoSuchElementException if it doesn't exist. */
+  /**
+   * Obtains the value of the given config, throws NoSuchElementException if it doesn't exist.
+   * 让子类实现，从而获取特定 config 的值。
+   */
   public abstract String get(String name);
 
   public String get(String name, String defaultValue) {

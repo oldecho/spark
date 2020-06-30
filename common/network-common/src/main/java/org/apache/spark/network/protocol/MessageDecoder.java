@@ -29,6 +29,13 @@ import org.slf4j.LoggerFactory;
 /**
  * Decoder used by the client side to encode server-to-client responses.
  * This encoder is stateless so it is safe to be shared by multiple threads.
+ * 客户端用于对服务器到客户端响应进行编码的解码器。
+ * 此编码器是无状态的，因此可以安全地由多个线程共享。
+ *
+ * 对从管道中读取的 ByteBuf 进行解析，防止丢包和解析错误。
+ *
+ * MessageDecoder 与 MessageEncoder 刚好相反，
+ * 它会将经过 TransportFrameDecoder 帧解码器解析后得到的 ByteBuf 类型的数据缓冲对象转换为 Message 类型的消息数据
  */
 @ChannelHandler.Sharable
 public final class MessageDecoder extends MessageToMessageDecoder<ByteBuf> {
@@ -37,14 +44,19 @@ public final class MessageDecoder extends MessageToMessageDecoder<ByteBuf> {
 
   @Override
   public void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
+    // 从 ByteBuf 中获取消息类型
     Message.Type msgType = Message.Type.decode(in);
+    // 使用重载的 decode() 方法进行解码
     Message decoded = decode(msgType, in);
+    // 检查解码后的消息类型是否正确
     assert decoded.type() == msgType;
     logger.trace("Received message {}: {}", msgType, decoded);
+    // 将解码后的消息添加到 out 中
     out.add(decoded);
   }
 
   private Message decode(Message.Type msgType, ByteBuf in) {
+    // 根据消息类型，选择不同类型的消息类，使用它们的静态方法 decode() 进行解码
     switch (msgType) {
       case ChunkFetchRequest:
         return ChunkFetchRequest.decode(in);

@@ -27,6 +27,9 @@ import org.apache.spark.network.buffer.NettyManagedBuffer;
  * A generic RPC which is handled by a remote {@link org.apache.spark.network.server.RpcHandler}.
  * This will correspond to a single
  * {@link org.apache.spark.network.protocol.ResponseMessage} (either success or failure).
+ *
+ * 由远程{@link org.apache.spark.network.server.RpcHandler}处理的通用RPC。
+ * 这将对应一个{@link org.apache.spark.network.protocol.ResponseMessage}（成功或失败）。
  */
 public final class RpcRequest extends AbstractMessage implements RequestMessage {
   /** Used to link an RPC request with its response. */

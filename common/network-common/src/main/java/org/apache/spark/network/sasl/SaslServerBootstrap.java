@@ -42,7 +42,9 @@ public class SaslServerBootstrap implements TransportServerBootstrap {
    * Wrap the given application handler in a SaslRpcHandler that will handle the initial SASL
    * negotiation.
    */
+  @Override
   public RpcHandler doBootstrap(Channel channel, RpcHandler rpcHandler) {
+    // SaslRpcHandler 继承了 RpcHandler，负责对管道进行 SASL（Simple Authentication and Security Layer）加密。
     return new SaslRpcHandler(conf, channel, rpcHandler, secretKeyHolder);
   }
 

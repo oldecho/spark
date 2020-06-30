@@ -433,18 +433,24 @@ public class SparkSaslSuite {
 
   }
 
+  /**
+   * 它是一个出站处理器，主要用于检测是否设置了 Encryption 处理器
+   */
   private static class EncryptionCheckerBootstrap extends ChannelOutboundHandlerAdapter
     implements TransportServerBootstrap {
 
     boolean foundEncryptionHandler;
 
+    // 数据写操作
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)
       throws Exception {
-      if (!foundEncryptionHandler) {
+      if (!foundEncryptionHandler) {  // 在没有找到 EncryptionHandler 时
+        // 根据是否存在名为 saslEncryption 的处理器给 foundEncryptionHandler 赋值
         foundEncryptionHandler =
           ctx.channel().pipeline().get(SaslEncryption.ENCRYPTION_HANDLER_NAME) != null;
       }
+      // 写操作
       ctx.write(msg, promise);
     }
 
@@ -453,6 +459,7 @@ public class SparkSaslSuite {
       super.handlerRemoved(ctx);
     }
 
+    // 将自己加入到 Netty 的 Pipeline 中实现引导
     @Override
     public RpcHandler doBootstrap(Channel channel, RpcHandler rpcHandler) {
       channel.pipeline().addFirst("encryptionChecker", this);
@@ -463,6 +470,7 @@ public class SparkSaslSuite {
 
   private static class EncryptionDisablerBootstrap implements TransportClientBootstrap {
 
+    /** 移除客户端管道中的SASL加密. */
     @Override
     public void doBootstrap(TransportClient client, Channel channel) {
       channel.pipeline().remove(SaslEncryption.ENCRYPTION_HANDLER_NAME);

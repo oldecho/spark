@@ -23,10 +23,14 @@ import io.netty.channel.Channel;
  * A bootstrap which is executed on a TransportClient before it is returned to the user.
  * This enables an initial exchange of information (e.g., SASL authentication tokens) on a once-per-
  * connection basis.
+ * 在将其返回给用户之前在 TransportClient 上执行的引导程序。这样可以在一次连接基础上进行信息的初始交换（例如 SASL 身份验证令牌）。
  *
  * Since connections (and TransportClients) are reused as much as possible, it is generally
  * reasonable to perform an expensive bootstrapping operation, as they often share a lifespan with
  * the JVM itself.
+ * 由于尽可能多地重用了连接（和 TransportClients），因此执行昂贵的引导操作通常是合理的，因为它们通常与 JVM 本身共享寿命。
+ *
+ * 当服务端相应客户端连接时在客户端执行一次的引导程序。
  */
 public interface TransportClientBootstrap {
   /** Performs the bootstrapping operation, throwing an exception on failure. */
