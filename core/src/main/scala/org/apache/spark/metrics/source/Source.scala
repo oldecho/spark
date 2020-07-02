@@ -19,7 +19,10 @@ package org.apache.spark.metrics.source
 
 import com.codahale.metrics.MetricRegistry
 
+/** 度量源的定义 */
 private[spark] trait Source {
+  /** 度量源的名称. */
   def sourceName: String
+  /** 当前度量源的注册表. */
   def metricRegistry: MetricRegistry
 }
