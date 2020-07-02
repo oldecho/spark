@@ -21,6 +21,7 @@ import org.apache.spark.util.ListenerBus
 
 /**
  * A [[SparkListenerEvent]] bus that relays [[SparkListenerEvent]]s to its listeners
+ * 用于将 SparkListenerEvent 类型的事件投递到 SparkListenerInterface 类型的监听器
  */
 private[spark] trait SparkListenerBus
   extends ListenerBus[SparkListenerInterface, SparkListenerEvent] {
@@ -64,7 +65,7 @@ private[spark] trait SparkListenerBus
       case blockUpdated: SparkListenerBlockUpdated =>
         listener.onBlockUpdated(blockUpdated)
       case logStart: SparkListenerLogStart => // ignore event log metadata
-      case _ => listener.onOtherEvent(event)
+      case _ => listener.onOtherEvent(event) // 匹配不到的事件
     }
   }
 
